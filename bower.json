@@ -1,0 +1,10 @@
+{
+  "name": "ggj2016de",
+  "version": "0.0.1",
+  "description": "Our Game",
+  "dependencies": {
+    "easeljs": "0.8.2",
+    "PreloadJS": "0.6.2",
+    "keymaster": "1.6.3"
+  }
+}

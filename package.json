@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "private": true,
+  "name": "ggj2016de",
+  "description": "Our Game",
+  "license": "Apache2",
+  "devDependencies": {
+    "bower": "1.6.3",
+    "http-server": "^0.6.1"
+  },
+  "scripts": {
+    "postinstall": "bower install --config.interactive=false",
+    "prestart": "npm install",
+    "start": "http-server ./app -a 0.0.0.0 -p 8000",
+    "pretest": "npm install"
+  }
+}

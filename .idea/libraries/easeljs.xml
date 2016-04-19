@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="easeljs" type="javaScript">
+    <properties>
+      <sourceFilesUrls>
+        <item url="file://$PROJECT_DIR$/bower_components/easeljs" />
+      </sourceFilesUrls>
+    </properties>
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/bower_components/easeljs" />
+    </CLASSES>
+    <SOURCES />
+  </library>
+</component>
