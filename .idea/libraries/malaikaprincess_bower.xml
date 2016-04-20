@@ -1,12 +1,12 @@
 <component name="libraryTable">
-  <library name="easeljs" type="javaScript">
+  <library name="malaikaprincess bower" type="javaScript">
     <properties>
       <sourceFilesUrls>
-        <item url="file://$PROJECT_DIR$/bower_components/easeljs" />
+        <item url="file://$PROJECT_DIR$/app/assets/lib" />
       </sourceFilesUrls>
     </properties>
     <CLASSES>
-      <root url="file://$PROJECT_DIR$/bower_components/easeljs" />
+      <root url="file://$PROJECT_DIR$/app/assets/lib" />
     </CLASSES>
     <SOURCES />
   </library>

@@ -2,6 +2,6 @@
 <project version="4">
   <component name="JavaScriptLibraryMappings">
     <file url="file://$PROJECT_DIR$" libraries="{malaikaprincess node_modules}" />
-    <file url="PROJECT" libraries="{easeljs, gsap, jQuery, malaikaprincess node_modules}" />
+    <file url="PROJECT" libraries="{easeljs, malaikaprincess bower, malaikaprincess node_modules}" />
   </component>
 </project>

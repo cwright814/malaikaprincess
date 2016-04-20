@@ -40,13 +40,13 @@ function init() {
 }
 
 function Actor(width, height, x, y, state, ground) {
-    if (typeof(x) === 'undefined')
+    if (x === undefined)
         x = 0;
-    if (typeof(y) === 'undefined')
+    if (y === undefined)
         y = 0;
-    if (typeof(state) === 'undefined')
+    if (state === undefined)
         state = null;
-    if (typeof(ground) === 'undefined')
+    if (ground === undefined)
         ground = false;
 
     this.width = width;
@@ -72,6 +72,7 @@ function Actor(width, height, x, y, state, ground) {
     this.updatesensors = actorUpdateSensors;
     this.colliding = colliding;
     this.reposition = actorReposition;
+    this.pound = actorPound;
 }
 
 function handleComplete() {
@@ -327,10 +328,10 @@ function tick(event) {
 
         // Player inputs and momentum
         var accel = player.ground ? 40 : 25;
-        if (input.right && player.pos.x <= w && !player.sensor.right.colliding()) {
+        if (input.right && player.pos.x <= w && !player.sensor.right.colliding() && player.jumping < 100) {
             player.speed.x += accel;
         }
-        if (input.left && player.pos.x >= 0 && !player.sensor.left.colliding()) {
+        if (input.left && player.pos.x >= 0 && !player.sensor.left.colliding() && player.jumping < 100) {
             player.speed.x -= accel;
         }
         player.speed.x = Math.min(Math.max(-500, player.speed.x), 500);
@@ -354,6 +355,9 @@ function tick(event) {
             if (player.jumping >= 3 && player.jumping < 8) {
                 player.jumping++;
                 player.speed.y -= 140;
+            }
+            if (input.down && player.jumping < 100) {
+                player.pound(800);
             }
         }
         /*if (input.fire && !player.hasFired) {
@@ -510,9 +514,9 @@ function actorShoot() {
     stage.addChild(projectile.sprite);
 }
 
-function actorJump(strength) {
+function actorJump(force) {
     this.ground = false;
-    this.speed.y = -strength;
+    this.speed.y = -force;
     if (this.jumping !== undefined)
         this.jumping++;
 }
@@ -520,6 +524,13 @@ function actorJump(strength) {
 function actorFall() {
     this.ground = false;
     this.groundIgnore = 0.2;
+}
+
+function actorPound(force) {
+    this.speed.x = 0;
+    this.speed.y = force;
+    if (this.jumping !== undefined)
+        this.jumping = 100;
 }
 
 function actorLand() {
