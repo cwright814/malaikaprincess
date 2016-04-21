@@ -1,5 +1,5 @@
-# ggj2016de
-Global Game Jam 2016 Delaware
+# Malaika Princess
+Free Web-based Endless Runner
 
 ####Install dependencies
 
@@ -9,9 +9,9 @@ Global Game Jam 2016 Delaware
 
 ####Clone repository
 
-- `git clone https://github.com/cwright814/ggj2016de`
+- `https://github.com/cwright814/malaikaprincess`
 
-- `cd ggj2016de`
+- `cd malaikaprincess`
 
 ####Install needed UI library dependencies
 
