@@ -85,11 +85,13 @@ function addTitleScreen() {
     stage.enableMouseOver(10);
     stage.state = 'title';
     input = {
+        id: 0,
         left: false,
         right: false,
         down: false,
         jump: false,
-        fire: false
+        fire: false,
+        update: inputUpdate
     };
     this.document.onkeydown = keyPressedDown;
     this.document.onkeyup = keyPressedUp;
@@ -399,6 +401,7 @@ function tick(event) {
         // Update actors and sensors
         player.pos.x -= 2;
         player.update();
+        input.update();
 
         // Death at bottom of screen
         if (player.pos.y > h + 256 && !reloading) {
@@ -642,18 +645,23 @@ function colliding(_objects) { // Compares object bounds vs objects[] to test fo
 
 function keyPressedDown() {
     if (key.isPressed('left') || key.isPressed('a')) {
+        input.id |= 1;
         input.left = true;
     }
     if (key.isPressed('right') || key.isPressed('d')) {
+        input.id |= 2;
         input.right = true;
     }
     if (key.isPressed('down') || key.isPressed('s')) {
+        input.id |= 4;
         input.down = true;
     }
     if (key.isPressed('up') || key.isPressed('w')) {
+        input.id |= 8;
         input.jump = true;
     }
     if (key.isPressed('space') || key.isPressed('enter')) {
+        input.id |= 16;
         input.fire = true;
     }
     if (key.isPressed('r'))
@@ -662,20 +670,29 @@ function keyPressedDown() {
 
 function keyPressedUp() {
     if (!key.isPressed('left') && !key.isPressed('a')) {
+        input.id &= 30;
         input.left = false;
     }
     if (!key.isPressed('right') && !key.isPressed('d')) {
+        input.id &= 29;
         input.right = false;
     }
     if (!key.isPressed('down') && !key.isPressed('s')) {
+        input.id &= 27;
         input.down = false;
     }
     if (!key.isPressed('up') && !key.isPressed('w')) {
+        input.id &= 23;
         input.jump = false;
     }
     if (!key.isPressed('space') && !key.isPressed('enter')) {
+        input.id &= 15;
         input.fire = false;
     }
+}
+
+function inputUpdate() {
+
 }
 
 function getRandomInt(min, max) {
