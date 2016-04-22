@@ -701,25 +701,24 @@ function keyPressedDown() {
         input.fire = true;
     }
 
-    if (!input.released && input.id == input.last)
-        return;
-    else
+    if (input.released) {
         input.released = false;
 
-    if (input.duration == 0 || (input.id & input.last) == 0)
-        input.duration = 0.35;
-    else {
-        var overlap = input.id & input.last;
-        if ((overlap & 1) == 1)
-            input.doubletapped.left = true;
-        if ((overlap & 2) == 2)
-            input.doubletapped.right = true;
-        if ((overlap & 4) == 4)
-            input.doubletapped.down = true;
-        if ((overlap & 8) == 8)
-            input.doubletapped.jump = true;
-        if ((overlap & 16) == 16)
-            input.doubletapped.fire = true;
+        if (input.duration == 0 || (input.id & input.last) == 0)
+            input.duration = 0.35;
+        else {
+            var overlap = input.id & input.last;
+            if ((overlap & 1) == 1)
+                input.doubletapped.left = true;
+            if ((overlap & 2) == 2)
+                input.doubletapped.right = true;
+            if ((overlap & 4) == 4)
+                input.doubletapped.down = true;
+            if ((overlap & 8) == 8)
+                input.doubletapped.jump = true;
+            if ((overlap & 16) == 16)
+                input.doubletapped.fire = true;
+        }
     }
 
     input.last = input.id;
