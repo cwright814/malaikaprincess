@@ -92,7 +92,13 @@ function addTitleScreen() {
         down: false,
         jump: false,
         fire: false,
-        doubletapped: false,
+        doubletapped: {
+            left: false,
+            right: false,
+            down: false,
+            jump: false,
+            fire: false
+        },
         released: true,
         duration: 0,
         update: inputUpdate
@@ -676,10 +682,21 @@ function keyPressedDown() {
         input.fire = true;
     }
 
-    if (input.duration == 0 || (input.id & input.last) >>> 0 == 0)
+    if (input.duration == 0 || (input.id & input.last) == 0)
         input.duration = 0.35;
-    else
-        input.doubletapped = true;
+    else {
+        var overlap = input.id & input.last;
+        if ((overlap & 1) == 1)
+            input.doubletapped.left = true;
+        if ((overlap & 2) == 2)
+            input.doubletapped.right = true;
+        if ((overlap & 4) == 4)
+            input.doubletapped.down = true;
+        if ((overlap & 8) == 8)
+            input.doubletapped.jump = true;
+        if ((overlap & 16) == 16)
+            input.doubletapped.fire = true;
+    }
 
     input.last = input.id;
     
@@ -713,8 +730,14 @@ function keyPressedUp() {
 }
 
 function inputUpdate() {
-    input.doubletapped = false;
     input.duration = Math.max(input.duration - delta, 0);
+    input.doubletapped = {
+        left: false,
+        right: false,
+        down: false,
+        jump: false,
+        fire: false
+    };
 }
 
 function getRandomInt(min, max) {
