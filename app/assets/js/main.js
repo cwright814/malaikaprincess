@@ -11,7 +11,8 @@ var ssEnemy1, ssEnemy2, ssEnemy3;
 var ssOrb, spiritCount, scoreText;
 var tilesets = [], enemies = [], orbs = [];
 var lives = new createjs.Container();
-var bgSpawn;
+var bgSpawn, shake;
+var shakeElapsed = 0;
 
 
 function init() {
@@ -402,7 +403,7 @@ function tick(event) {
                     player.state = 'fall';
             }
         }
-        
+
         if (player.state == 'shootGround' || player.state == 'shootAir') {
             if (player.sprite.currentAnimation != player.state)
                 player.state = player.sprite.currentAnimation;
@@ -411,6 +412,7 @@ function tick(event) {
         // Update actors and sensors
         player.pos.x -= 2;
         player.update();
+        updateShake();
 
         // Death at bottom of screen
         if (player.pos.y > h + 256 && !reloading) {
@@ -552,7 +554,11 @@ function actorLand() {
     this.ground = true;
     this.speed.y = 0;
     this.reposition();
-    if (this.jumping !== undefined)
+    if (this.jumping === 100) {
+        shake = true;
+        shakeElapsed = 0;
+    }
+    else if (this.jumping !== undefined)
         this.jumping = 0;
 }
 
@@ -606,6 +612,24 @@ function initSensor(label, width, height, offsetX, offsetY) { // Creates child (
         updatepos: updatePos,
         colliding: colliding
     };
+}
+
+function updateShake() {
+    if (shake) {
+        shakeElapsed += delta;
+        if (shakeElapsed < 1) {
+            var margin = [getRandomInt(-200, 200), getRandomInt(-200, 200),
+                          getRandomInt(-200, 200), getRandomInt(-200, 200)].join('px ') + 'px';
+            document.getElementById('arena').style.margin = margin;
+            var rgb = [getRandomInt(30, 230), getRandomInt(30, 230), getRandomInt(30, 230)].join(',')
+            document.body.style.background = 'rgb(' + rgb + ')';
+        }
+        else {
+            shake = false;
+            document.getElementById("arena").style.margin = '0';
+            document.body.style.background = '#CECECE';
+        }
+    }
 }
 
 function updatePos() {
