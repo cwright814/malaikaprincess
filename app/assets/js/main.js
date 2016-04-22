@@ -558,7 +558,7 @@ function actorLand() {
         shake = true;
         shakeElapsed = 0;
     }
-    else if (this.jumping !== undefined)
+    if (this.jumping !== undefined)
         this.jumping = 0;
 }
 
@@ -617,7 +617,7 @@ function initSensor(label, width, height, offsetX, offsetY) { // Creates child (
 function updateShake() {
     if (shake) {
         shakeElapsed += delta;
-        if (shakeElapsed < 1) {
+        if (shakeElapsed < .5) {
             var margin = [getRandomInt(-200, 200), getRandomInt(-200, 200),
                           getRandomInt(-200, 200), getRandomInt(-200, 200)].join('px ') + 'px';
             document.getElementById('arena').style.margin = margin;
