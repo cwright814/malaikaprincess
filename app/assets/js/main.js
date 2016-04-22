@@ -617,17 +617,14 @@ function initSensor(label, width, height, offsetX, offsetY) { // Creates child (
 function updateShake() {
     if (shake) {
         shakeElapsed += delta;
-        if (shakeElapsed < .5) {
-            var margin = [getRandomInt(-200, 200), getRandomInt(-200, 200),
-                          getRandomInt(-200, 200), getRandomInt(-200, 200)].join('px ') + 'px';
+        if (shakeElapsed < .25) {
+            var margin = [getRandomInt(-2, 2), getRandomInt(-2, 2),
+                          getRandomInt(-2, 2), getRandomInt(-2, 2)].join('px ') + 'px';
             document.getElementById('arena').style.margin = margin;
-            var rgb = [getRandomInt(30, 230), getRandomInt(30, 230), getRandomInt(30, 230)].join(',')
-            document.body.style.background = 'rgb(' + rgb + ')';
         }
         else {
             shake = false;
             document.getElementById("arena").style.margin = '0';
-            document.body.style.background = '#CECECE';
         }
     }
 }
