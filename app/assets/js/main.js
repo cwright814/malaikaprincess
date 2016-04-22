@@ -617,9 +617,9 @@ function initSensor(label, width, height, offsetX, offsetY) { // Creates child (
 function updateShake() {
     if (shake) {
         shakeElapsed += delta;
-        if (shakeElapsed < .25) {
-            var margin = [getRandomInt(-2, 2), getRandomInt(-2, 2),
-                          getRandomInt(-2, 2), getRandomInt(-2, 2)].join('px ') + 'px';
+        if (shakeElapsed < .15) {
+            var margin = [getRandomInt(-4, 5), getRandomInt(-4, 5),
+                          getRandomInt(-4, 5), getRandomInt(-4, 5)].join('px ') + 'px';
             document.getElementById('arena').style.margin = margin;
         }
         else {
