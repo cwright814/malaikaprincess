@@ -680,11 +680,6 @@ function colliding(_objects) { // Compares object bounds vs objects[] to test fo
 }
 
 function keyPressedDown() {
-    if (!input.released)
-        return;
-    else
-        input.released = false;
-
     if (key.isPressed('left') || key.isPressed('a')) {
         input.id |= 1;
         input.left = true;
@@ -705,6 +700,11 @@ function keyPressedDown() {
         input.id |= 16;
         input.fire = true;
     }
+
+    if (!input.released && input.id == input.last)
+        return;
+    else
+        input.released = false;
 
     if (input.duration == 0 || (input.id & input.last) == 0)
         input.duration = 0.35;
