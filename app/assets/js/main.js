@@ -86,11 +86,15 @@ function addTitleScreen() {
     stage.state = 'title';
     input = {
         id: 0,
+        last: 0,
         left: false,
         right: false,
         down: false,
         jump: false,
         fire: false,
+        doubletapped: false,
+        released: true,
+        duration: 0,
         update: inputUpdate
     };
     this.document.onkeydown = keyPressedDown;
@@ -401,7 +405,6 @@ function tick(event) {
         // Update actors and sensors
         player.pos.x -= 2;
         player.update();
-        input.update();
 
         // Death at bottom of screen
         if (player.pos.y > h + 256 && !reloading) {
@@ -505,6 +508,9 @@ function tick(event) {
 
     // Update stage
     stage.update(event);
+
+    // Update input
+    input.update();
 }
 
 function actorShoot() {
@@ -644,6 +650,11 @@ function colliding(_objects) { // Compares object bounds vs objects[] to test fo
 }
 
 function keyPressedDown() {
+    if (!input.released)
+        return;
+    else
+        input.released = false;
+
     if (key.isPressed('left') || key.isPressed('a')) {
         input.id |= 1;
         input.left = true;
@@ -664,11 +675,21 @@ function keyPressedDown() {
         input.id |= 16;
         input.fire = true;
     }
+
+    if (input.duration == 0 || (input.id & input.last) >>> 0 == 0)
+        input.duration = 0.35;
+    else
+        input.doubletapped = true;
+
+    input.last = input.id;
+    
     if (key.isPressed('r'))
         window.location.reload(false);
 }
 
 function keyPressedUp() {
+    input.released = true;
+
     if (!key.isPressed('left') && !key.isPressed('a')) {
         input.id &= 30;
         input.left = false;
@@ -692,7 +713,8 @@ function keyPressedUp() {
 }
 
 function inputUpdate() {
-
+    input.doubletapped = false;
+    input.duration = Math.max(input.duration - delta, 0);
 }
 
 function getRandomInt(min, max) {
