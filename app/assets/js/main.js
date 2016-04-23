@@ -789,11 +789,11 @@ function keyPressedDown() {
         input.fire = true;
     }
 
-    var impossible = input.left && input.right || input.up && input.down;
+    var multiple = input.id > 2 && input.id != 4 && input.id != 8 && input.id != 16;
 
-    if (input.released || impossible) {
+    if (input.released || multiple) {
         input.released = false;
-        if (input.duration == 0 || (input.id & input.last) == 0 || impossible)
+        if (input.duration == 0 || (input.id & input.last) == 0 || multiple)
             input.duration = 0.2;
         else {
             var overlap = input.id & input.last;
