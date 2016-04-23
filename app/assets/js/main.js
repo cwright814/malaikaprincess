@@ -81,6 +81,7 @@ function Actor(width, height, x, y, state, ground) {
     this.reposition = actorReposition;
     this.pound = actorPound;
     this.dash = actorDash;
+    this.dashcancel = actorDashCancel;
 }
 
 function handleComplete() {
@@ -384,8 +385,6 @@ function tick(event) {
             if (!input.jump && player.jumping == 1)
                 player.jumping = 2;
             else if (input.jump && player.jumping == 2) {
-                if (player.dashing > delta)
-                    player.dashing = delta;
                 player.jump(100);
             }
             else if (player.jumping >= 3 && player.jumping < 8) {
@@ -393,8 +392,6 @@ function tick(event) {
                 player.speed.y -= 140;
             }
             if (input.down && player.jumping < 100) {
-                if (player.dashing > delta)
-                    player.dashing = delta;
                 player.pound(800);
             }
         }
@@ -565,6 +562,7 @@ function actorShoot() {
 function actorJump(force) {
     this.ground = false;
     this.speed.y = -force;
+    this.dashcancel();
     if (this.jumping !== undefined)
         this.jumping++;
 }
@@ -577,6 +575,7 @@ function actorFall() {
 function actorPound(force) {
     this.speed.x = 0;
     this.speed.y = force;
+    this.dashcancel();
     if (this.jumping !== undefined)
         this.jumping = 100;
 }
@@ -619,6 +618,11 @@ function actorDash(duration) {
             this.dashdelay = 0.35;
         }
     }
+}
+
+function actorDashCancel() {
+    this.dashing = 0;
+    this.dashdelay = 0.35;
 }
 
 function actorReposition() {
