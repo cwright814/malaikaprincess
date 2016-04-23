@@ -65,7 +65,7 @@ function Actor(width, height, x, y, state, ground) {
     this.health = 7;
     this.groundIgnore = 0;
     this.dashing = 0;
-    this.dashforce = 650;
+    this.dashforce = 1000;
     this.hasdashed = false;
     this.dashdelay = 0;
     this.shoot = actorShoot;
@@ -368,11 +368,11 @@ function tick(event) {
 
         if (input.doubletapped.right) {
             player.sprite.scaleX = 1;
-            player.dash(0.3);
+            player.dash(0.275);
         }
         else if (input.doubletapped.left) {
             player.sprite.scaleX = -1;
-            player.dash(0.3);
+            player.dash(0.275);
         }
 
         if (player.ground) {
@@ -382,7 +382,9 @@ function tick(event) {
                 player.fall();*/
         }
         else {
-            if (!input.jump && player.jumping == 1)
+            if (player.jumping == 0)
+                player.jumping = 1;
+            else if (!input.jump && player.jumping == 1)
                 player.jumping = 2;
             else if (input.jump && player.jumping == 2) {
                 player.jump(100);
@@ -392,7 +394,7 @@ function tick(event) {
                 player.speed.y -= 140;
             }
             if (input.down && player.jumping < 100) {
-                player.pound(800);
+                player.pound(1250);
             }
         }
 
@@ -477,11 +479,11 @@ function tick(event) {
 
         // Check for collisions
         if (player.sensor.right.colliding()) {
-            player.reposition();
+            player.reposition(false);
             player.speed.x = Math.min(0, player.speed.x);
         }
         else if (player.sensor.left.colliding()) {
-            player.reposition();
+            player.reposition(false);
             player.speed.x = Math.max(0, player.speed.x);
         }
         if (player.pos.x > w) {
@@ -584,10 +586,10 @@ function actorLand() {
     this.ground = true;
     this.hasdashed = false;
     this.speed.y = 0;
-    this.reposition();
+    this.reposition(true);
     if (this.jumping !== undefined) {
         if (this.jumping == 100) {
-            shake(0.25);
+            shake(0.3);
         }
         this.jumping = 0;
     }
@@ -599,6 +601,7 @@ function actorDash(duration) {
             if (duration !== undefined && (this.ground || !this.hasdashed || this.canmultidash !== undefined)) {
                 this.hasdashed = !this.ground;
                 this.dashing = duration;
+                shake(0.15);
             }
         }
         else {
@@ -625,29 +628,42 @@ function actorDashCancel() {
     this.dashdelay = 0.35;
 }
 
-function actorReposition() {
-    if (this.sensor.bottom2 !== undefined) {
-        while (this.sensor.bottom2.colliding()) {
-            this.pos.y -= 1;
-            this.updatesensors();
+function actorReposition(vertical) {
+    var limit;
+    if (vertical === undefined || vertical) {
+        if (this.sensor.bottom2 !== undefined) {
+            limit = 32;
+            while (this.sensor.bottom2.colliding() && limit > 0) {
+                this.pos.y -= 1;
+                this.updatesensors();
+                limit--;
+            }
+        }
+        if (this.sensor.top2 !== undefined) {
+            limit = 32;
+            while (this.sensor.top2.colliding() && limit > 0) {
+                this.pos.y += 1;
+                this.updatesensors();
+                limit--;
+            }
         }
     }
-    else if (this.sensor.top2 !== undefined) {
-        while (this.sensor.top2.colliding()) {
-            this.pos.y += 1;
-            this.updatesensors();
+    if (vertical === undefined || !vertical) {
+        if (this.sensor.right2 !== undefined) {
+            limit = 32;
+            while (this.sensor.right2.colliding() && limit > 0) {
+                this.pos.x -= 1;
+                this.updatesensors();
+                limit--;
+            }
         }
-    }
-    if (this.sensor.right2 !== undefined) {
-        while (this.sensor.right2.colliding()) {
-            this.pos.x -= 1;
-            this.updatesensors();
-        }
-    }
-    else if (this.sensor.left2 !== undefined) {
-        while (this.sensor.left2.colliding()) {
-            this.pos.x += 1;
-            this.updatesensors();
+        if (this.sensor.left2 !== undefined) {
+            limit = 32;
+            while (this.sensor.left2.colliding() && limit > 0) {
+                this.pos.x += 1;
+                this.updatesensors();
+                limit--;
+            }
         }
     }
 }
@@ -773,10 +789,11 @@ function keyPressedDown() {
         input.fire = true;
     }
 
-    if (input.released) {
-        input.released = false;
+    var impossible = input.left && input.right || input.up && input.down;
 
-        if (input.duration == 0 || (input.id & input.last) == 0)
+    if (input.released || impossible) {
+        input.released = false;
+        if (input.duration == 0 || (input.id & input.last) == 0 || impossible)
             input.duration = 0.2;
         else {
             var overlap = input.id & input.last;
