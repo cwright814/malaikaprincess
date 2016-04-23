@@ -11,8 +11,7 @@ var ssEnemy1, ssEnemy2, ssEnemy3;
 var ssOrb, spiritCount, scoreText;
 var tilesets = [], enemies = [], orbs = [];
 var lives = new createjs.Container();
-var bgSpawn, shake;
-var shakeElapsed = 0;
+var bgSpawn, shakeDuration;
 
 
 function init() {
@@ -54,14 +53,21 @@ function Actor(width, height, x, y, state, ground) {
     this.height = height;
     this.pos = {
         x: x,
-        y: y};
+        y: y
+    };
     this.speed = {
         x: 0,
-        y: 0};
+        y: 0,
+        run: 500
+    };
     this.state = state;
     this.ground = ground;
     this.health = 7;
     this.groundIgnore = 0;
+    this.dashing = 0;
+    this.dashforce = 650;
+    this.hasdashed = false;
+    this.dashdelay = 0;
     this.shoot = actorShoot;
     this.jump = actorJump;
     this.fall = actorFall;
@@ -74,6 +80,7 @@ function Actor(width, height, x, y, state, ground) {
     this.colliding = colliding;
     this.reposition = actorReposition;
     this.pound = actorPound;
+    this.dash = actorDash;
 }
 
 function handleComplete() {
@@ -146,6 +153,7 @@ function addGameScreen() {
     timer = 0;
     reloading = false;
     bgSpawn = 1.25;
+    shakeDuration = 0;
 
     background = new createjs.Shape();
     background.graphics.beginBitmapFill(loader.getResult('background')).drawRect(0, 0, w, h);
@@ -340,19 +348,32 @@ function tick(event) {
         });
 
         // Player inputs and momentum
-        var accel = player.ground ? 40 : 25;
-        if (input.right && player.pos.x <= w && !player.sensor.right.colliding() && player.jumping < 100) {
-            player.speed.x += accel;
+        if (player.dashing == 0) {
+            var accel = player.ground ? 40 : 25;
+            if (input.right && player.pos.x <= w && !player.sensor.right.colliding() && player.jumping < 100) {
+                player.speed.x += accel;
+            }
+            if (input.left && player.pos.x >= 0 && !player.sensor.left.colliding() && player.jumping < 100) {
+                player.speed.x -= accel;
+            }
+            player.speed.x = Math.min(Math.max(-player.speed.run, player.speed.x), player.speed.run);
         }
-        if (input.left && player.pos.x >= 0 && !player.sensor.left.colliding() && player.jumping < 100) {
-            player.speed.x -= accel;
-        }
-        player.speed.x = Math.min(Math.max(-500, player.speed.x), 500);
+
         var decel = player.ground ? 25 : 12;
-        if (!input.right && player.speed.x > 0)
+        if (!input.right && player.speed.x > 0 || player.speed.x > player.speed.run)
             player.speed.x = Math.max(player.speed.x - decel, 0);
-        else if (!input.left && player.speed.x < 0)
+        else if (!input.left && player.speed.x < 0 || player.speed.x < -player.speed.run)
             player.speed.x = Math.min(player.speed.x + decel, 0);
+
+        if (input.doubletapped.right) {
+            player.sprite.scaleX = 1;
+            player.dash(0.3);
+        }
+        else if (input.doubletapped.left) {
+            player.sprite.scaleX = -1;
+            player.dash(0.3);
+        }
+
         if (player.ground) {
             if (input.jump && player.jumping == 0)
                 player.jump(600);
@@ -363,16 +384,21 @@ function tick(event) {
             if (!input.jump && player.jumping == 1)
                 player.jumping = 2;
             else if (input.jump && player.jumping == 2) {
+                if (player.dashing > delta)
+                    player.dashing = delta;
                 player.jump(100);
             }
-            if (player.jumping >= 3 && player.jumping < 8) {
+            else if (player.jumping >= 3 && player.jumping < 8) {
                 player.jumping++;
                 player.speed.y -= 140;
             }
             if (input.down && player.jumping < 100) {
+                if (player.dashing > delta)
+                    player.dashing = delta;
                 player.pound(800);
             }
         }
+
         /*if (input.fire && !player.hasFired) {
             player.shoot();
             player.hasFired = true;
@@ -385,7 +411,8 @@ function tick(event) {
         if (player.hasFired && !input.fire) {
             player.hasFired = false;
         }*/
-        if (!player.ground)
+
+        if (!player.ground && player.dashing == 0)
             player.speed.y += 1600 * delta;
 
         // Player states
@@ -402,6 +429,8 @@ function tick(event) {
                 else
                     player.state = 'fall';
             }
+            if (player.dashing > 0)
+                player.state = 'jump';
         }
 
         if (player.state == 'shootGround' || player.state == 'shootAir') {
@@ -412,7 +441,6 @@ function tick(event) {
         // Update actors and sensors
         player.pos.x -= 2;
         player.update();
-        updateShake();
 
         // Death at bottom of screen
         if (player.pos.y > h + 256 && !reloading) {
@@ -519,6 +547,9 @@ function tick(event) {
 
     // Update input
     input.update();
+
+    // Update shake
+    updateShake();
 }
 
 function actorShoot() {
@@ -552,20 +583,54 @@ function actorPound(force) {
 
 function actorLand() {
     this.ground = true;
+    this.hasdashed = false;
     this.speed.y = 0;
     this.reposition();
-    if (this.jumping === 100) {
-        shake = true;
-        shakeElapsed = 0;
-    }
-    if (this.jumping !== undefined)
+    if (this.jumping !== undefined) {
+        if (this.jumping == 100) {
+            shake(0.25);
+        }
         this.jumping = 0;
+    }
+}
+
+function actorDash(duration) {
+    if (this.dashing == 0) {
+        if (this.dashdelay == 0) {
+            if (duration !== undefined && (this.ground || !this.hasdashed || this.canmultidash !== undefined)) {
+                this.hasdashed = !this.ground;
+                this.dashing = duration;
+            }
+        }
+        else {
+            this.dashdelay -= delta;
+            if (this.dashdelay < 0)
+                this.dashdelay = 0;
+        }
+    }
+    if (this.dashing > 0) {
+        this.dashing -= delta;
+        if (this.dashing > 0) {
+            this.speed.x = this.dashforce * this.sprite.scaleX;
+            this.speed.y = 0;
+        }
+        else {
+            this.dashing = 0;
+            this.dashdelay = 0.35;
+        }
+    }
 }
 
 function actorReposition() {
     if (this.sensor.bottom2 !== undefined) {
         while (this.sensor.bottom2.colliding()) {
             this.pos.y -= 1;
+            this.updatesensors();
+        }
+    }
+    else if (this.sensor.top2 !== undefined) {
+        while (this.sensor.top2.colliding()) {
+            this.pos.y += 1;
             this.updatesensors();
         }
     }
@@ -586,6 +651,7 @@ function actorReposition() {
 function actorUpdate() {
     this.updatepos();
     this.updatesensors();
+    this.dash();
 }
 
 function actorUpdateSensors() {
@@ -614,16 +680,21 @@ function initSensor(label, width, height, offsetX, offsetY) { // Creates child (
     };
 }
 
+function shake(duration) {
+    shakeDuration = duration;
+}
+
 function updateShake() {
-    if (shake) {
-        shakeElapsed += delta;
-        if (shakeElapsed < .15) {
-            var margin = [getRandomInt(-4, 5), getRandomInt(-4, 5),
-                          getRandomInt(-4, 5), getRandomInt(-4, 5)].join('px ') + 'px';
-            document.getElementById('arena').style.margin = margin;
+    if (shakeDuration > 0) {
+        shakeDuration -= delta;
+        if (shakeDuration > 0) {
+            var max = (shakeDuration * 64) | 0;
+            var min = -max;
+            document.getElementById('arena').style.margin =
+                [getRandomInt(min, max), getRandomInt(min, max), getRandomInt(min, max), getRandomInt(min, max)]
+                    .join('px ') + 'px';
         }
         else {
-            shake = false;
             document.getElementById("arena").style.margin = '0';
         }
     }
@@ -702,7 +773,7 @@ function keyPressedDown() {
         input.released = false;
 
         if (input.duration == 0 || (input.id & input.last) == 0)
-            input.duration = 0.35;
+            input.duration = 0.2;
         else {
             var overlap = input.id & input.last;
             if ((overlap & 1) == 1)
@@ -761,5 +832,5 @@ function inputUpdate() {
 }
 
 function getRandomInt(min, max) {
-  return Math.floor(Math.random() * (max - min)) + min;
+    return Math.floor(Math.random() * (max - min + 1)) + min;
 }
