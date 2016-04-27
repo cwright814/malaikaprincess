@@ -7,9 +7,10 @@ var TitleView = new createjs.Container();
 // Game Screen
 var input, ground, player, spirit;
 var projectiles, spriteSheetPlatform;
-var ssEnemy1, ssEnemy2, ssEnemy3;
-var ssOrb, spiritCount, scoreText;
-var tilesets = [], enemies = [], orbs = [];
+var ssEnemy1, ssEnemy2, ssEnemy3, ssOrb, ssTotem;
+var spiritCount, scoreText;
+var tilesets = [], enemies = [], orbs = [], totems = [];
+var totemFormations = [];
 var lives = new createjs.Container();
 var bgSpawn, shakeDuration;
 
@@ -31,12 +32,22 @@ function init() {
         {src: 'enemy3-spritesheet.png', id: 'enemy3'},
         {src: 'spirit-orb-spritesheet.png', id: 'orb'},
         {src: 'plume-heart.png', id: 'life'},
-        {src: 'title-bg.png', id: 'title-bg'}
+        {src: 'title-bg.png', id: 'title-bg'},
+        {src: 'totem.png', id: 'totem'}
     ];
 
     loader = new createjs.LoadQueue(false);
     loader.addEventListener('complete', handleComplete);
     loader.loadManifest(manifest, true, 'assets/sprites/');
+}
+
+function Point(x, y) {
+    if (x === undefined || x == null)
+        x = 0;
+    if (y === undefined || y == null)
+        y = 0;
+    this.x = x;
+    this.y = y;
 }
 
 function Actor(width, height, x, y, state, ground) {
@@ -220,6 +231,23 @@ function addGameScreen() {
         }
     });
 
+    ssTotem = new createjs.SpriteSheet({
+        framerate: 20,
+        'images': [loader.getResult('totem')],
+        'frames': {'width': 38, 'height': 58, 'regX': 19, 'regY': 29, 'count': 49},
+        'animations': {
+            'idle': [0, 0, '', 0.5],
+            'lit1': [1, 24, 'lit1', 0.5],
+            'lit2': [25, 48, 'lit2', 0.5]
+        }
+    });
+
+    totemFormations.push([new Point(0, 2), new Point(1, 2)]);
+    totemFormations.push([new Point(0, 0), new Point(0, 1), new Point(0, 2), new Point(0, 3)]);
+    totemFormations.push([new Point(0, 0), new Point(0, 1), new Point(0, 2), new Point(0, 3),
+                          new Point(1, 0), new Point(2, 0), new Point(3, 0), new Point(3, 1),
+                          new Point(3, 2), new Point(3, 3)]);
+
     // Add lives
     for(var i = 0; i < player.health; i++) {
         var life = new createjs.Bitmap(loader.getResult('life'));
@@ -238,11 +266,10 @@ function addGameScreen() {
 
     stage.addChild(background);
 
-
     stage.addChild(player.sprite);
 
     // Generate initial platform
-    addPlatform(0, h * 0.8, 2);
+    addPlatform(0, h * 0.8, 2, false);
 
     stage.addChild(lives, score);
 }
@@ -283,7 +310,20 @@ function spawnEnemy() {
     stage.addChild(enemy.sprite);
 }
 
-function addPlatform(x, y, length) {
+function addTotems(id, offsetX, offsetY) {
+    totemFormations[id].forEach(function(point) {
+        var _w = ssTotem._frameWidth;
+        var _h = ssTotem._frameHeight;
+        var _x = offsetX + point.x * _w * 2;
+        var _y = offsetY + (point.y - 3) * _h * 1.15;
+        var totem = new Actor(_w, _h, _x, _y, 'idle');
+        totem.sprite = new createjs.Sprite(ssTotem, 'idle');
+        totems.push(totem);
+        stage.addChild(totem.sprite);
+    });
+}
+
+function addPlatform(x, y, length, spawnTotems) {
     if (length === undefined) length = 1;
     var spriteImg = loader.getResult('platform');
     var sprite = new createjs.Shape();
@@ -304,6 +344,9 @@ function addPlatform(x, y, length) {
         remove: removePlatform
     };
     platform.setbounds();
+
+    if (spawnTotems === undefined || spawnTotems)
+        addTotems(getRandomInt(0, 2), x + spriteImg.width - 32, y - 48);
 
     tilesets.push(platform);
     stage.addChild(platform.sprite);
@@ -339,6 +382,13 @@ function tick(event) {
             addPlatform(w, h * 0.6 + Math.random() * h * 0.35);
             if (tilesets.length > 4)
                 tilesets[0].remove();
+            for (var i = 0, totem; totem = totems[i]; i++) {
+                if (totem.colliding()) {
+                    stage.removeChild(totem.sprite);
+                    totems.splice(i, 1);
+                    i--;
+                }
+            }
         }
 
         // Background scrolling
@@ -535,6 +585,19 @@ function tick(event) {
                 enemy.ground = false;
 
             enemy.update();
+        }
+
+        // Update totems
+        for (var i = 0, totem; totem = totems[i]; i++) {
+            totem.speed.x = -300;
+
+            totem.update();
+
+            if (totem.pos.x < -ssTotem._frameWidth) {
+                stage.removeChild(totem.sprite);
+                totems.splice(i, 1);
+                i--;
+            }
         }
         break;
     default:
