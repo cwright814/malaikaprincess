@@ -258,6 +258,7 @@ function addGameScreen() {
     player.hasFired = false;
     player.jumping = 0;
     player.canmultidash = true;
+    player.squishing = 0;
 
     var ssClothing = new createjs.SpriteSheet({
         framerate: 30,
@@ -811,10 +812,15 @@ function tick(event) {
             clothing.scaleX = -1;
         }
 
-        if (player.sensor.bottom2.colliding() && !reloading) {
-            reloading = true;
-            document.location.reload(true);
+        if (player.sensor.bottom2.colliding()) {
+            player.squishing += delta;
+            if (player.squishing > 0.25 && !reloading) {
+                reloading = true;
+                document.location.reload(true);
+            }
         }
+        else
+            player.squishing = 0;
 
         // Now do the same thing for the enemies
         for (var i = 0; i < enemies.length; i++) {
