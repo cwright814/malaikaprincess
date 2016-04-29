@@ -1,5 +1,5 @@
 // Stage Variables
-var stage, w, h, loader, delta, timer, reloading;
+var stage, w, h, splash, loader, delta, timer, reloading;
 
 // Title Screen
 var TitleView = new createjs.Container();
@@ -8,46 +8,31 @@ var TitleView = new createjs.Container();
 var input, ground, player, spirit;
 var projectiles, spriteSheetPlatform;
 var ssEnemy1, ssEnemy2, ssEnemy3, ssOrb, ssTotem;
-var spiritCount, scoreText;
+var totemCount, scoreText;
 var tilesets = [], enemies = [], orbs = [], totems = [];
 var totemFormations = [];
 var lives = new createjs.Container();
 var bgSpawn, shakeDuration;
+var hardmode = true, speedFactor;
 
+// Probabilities
+var groundLength = [1, 1, 2, 2, 2, 3];
+var groundHoles;
+var totemLand;
+var totemHole;
 
-function init() {
-    stage = new createjs.Stage('arena');
+// Constructors
 
-    // grab canvas width and height for later calculations:
-    w = stage.canvas.width;
-    h = stage.canvas.height;
-
-    manifest = [
-        {src: 'heroine.png', id: 'character'},
-        {src: 'ground.png', id: 'platform'},
-        {src: 'arrow-1.png', id: 'projectile'},
-        {src: 'background-2.png', id: 'background'},
-        {src: 'enemy1-spritesheet.png', id: 'enemy1'},
-        {src: 'enemy2-spritesheet.png', id: 'enemy2'},
-        {src: 'enemy3-spritesheet.png', id: 'enemy3'},
-        {src: 'spirit-orb-spritesheet.png', id: 'orb'},
-        {src: 'plume-heart.png', id: 'life'},
-        {src: 'title-bg.png', id: 'title-bg'},
-        {src: 'totem.png', id: 'totem'}
-    ];
-
-    loader = new createjs.LoadQueue(false);
-    loader.addEventListener('complete', handleComplete);
-    loader.loadManifest(manifest, true, 'assets/sprites/');
-}
-
-function Point(x, y) {
+function Point(x, y, z) {
     if (x === undefined || x == null)
         x = 0;
     if (y === undefined || y == null)
         y = 0;
+    if (z === undefined || z == null)
+        z = 0;
     this.x = x;
     this.y = y;
+    this.z = z;
 }
 
 function Actor(width, height, x, y, state, ground) {
@@ -73,7 +58,7 @@ function Actor(width, height, x, y, state, ground) {
     };
     this.state = state;
     this.ground = ground;
-    this.health = 7;
+    this.health = 8;
     this.groundIgnore = 0;
     this.dashing = 0;
     this.dashforce = 1000;
@@ -95,6 +80,47 @@ function Actor(width, height, x, y, state, ground) {
     this.dashcancel = actorDashCancel;
 }
 
+// Main code
+
+function init() {
+    stage = new createjs.Stage('arena');
+
+    // grab canvas width and height for later calculations:
+    w = stage.canvas.width;
+    h = stage.canvas.height;
+
+    splash = new createjs.LoadQueue(true);
+    splash.addEventListener('complete', showSplash);
+    splash.loadManifest([{src: 'title-bg.png', id: 'title-bg'}], true, 'assets/sprites/');
+}
+
+function showSplash() {
+    var titleBg = new createjs.Shape();
+    titleBg.graphics.beginBitmapFill(splash.getResult('title-bg')).drawRect(0, 0, w, h);
+
+    TitleView.addChild(titleBg);
+    stage.addChild(TitleView);
+    stage.update();
+
+    manifest = [
+        {src: 'heroine.png', id: 'character'},
+        {src: 'ground.png', id: 'platform'},
+        {src: 'arrow-1.png', id: 'projectile'},
+        {src: 'background-2.png', id: 'background'},
+        {src: 'enemy1-spritesheet.png', id: 'enemy1'},
+        {src: 'enemy2-spritesheet.png', id: 'enemy2'},
+        {src: 'enemy3-spritesheet.png', id: 'enemy3'},
+        {src: 'spirit-orb-spritesheet.png', id: 'orb'},
+        {src: 'heart-life.png', id: 'life'},
+        {src: 'totem.png', id: 'totem'},
+        {src: 'title-enter.png', id: 'title-enter'}
+    ];
+
+    loader = new createjs.LoadQueue(true);
+    loader.addEventListener('complete', handleComplete);
+    loader.loadManifest(manifest, true, 'assets/sprites/');
+}
+
 function handleComplete() {
     createjs.Ticker.timingMode = createjs.Ticker.RAF;
     createjs.Ticker.addEventListener('tick', tick);
@@ -112,12 +138,14 @@ function addTitleScreen() {
         down: false,
         jump: false,
         fire: false,
+        dash: false,
         doubletapped: {
             left: false,
             right: false,
             down: false,
             jump: false,
-            fire: false
+            fire: false,
+            dash: false
         },
         released: true,
         duration: 0,
@@ -125,11 +153,16 @@ function addTitleScreen() {
     };
     this.document.onkeydown = keyPressedDown;
     this.document.onkeyup = keyPressedUp;
-  
-    var titleBg = new createjs.Shape();
-    titleBg.graphics.beginBitmapFill(loader.getResult('title-bg')).drawRect(0, 0, w, h);
-  
-    var startText = new createjs.Text('Start', '32px Tahoma, Geneva, sans-serif', '#000');
+
+    var titleEnter = new createjs.Shape(); //561, 515
+    titleEnter.graphics.beginBitmapFill(loader.getResult('title-enter')).drawRect(0, 0, 295, 25);
+    titleEnter.x = 561;
+    titleEnter.y = 515;
+
+    TitleView.addChild(titleEnter);
+    stage.update();
+
+    /*var startText = new createjs.Text('Start', '32px Tahoma, Geneva, sans-serif', '#000');
     startText.x = w/2 - 32;
     startText.y = 350;
     startText.alpha = 0.5;
@@ -142,9 +175,8 @@ function addTitleScreen() {
     startText.on('mouseout', hoverEffect);
     startText.on('mousedown', transitionTitleView);
   
-    TitleView.addChild(titleBg, startText);
-    stage.addChild(TitleView);
-    stage.update();
+    TitleView.addChild(startText);
+    stage.update();*/
 }
 
 function hoverEffect(event) {
@@ -164,14 +196,28 @@ function addGameScreen() {
     stage.state = 'game';
     timer = 0;
     reloading = false;
-    bgSpawn = 1.25;
+    bgSpawn = 0.5;
     shakeDuration = 0;
+    totemCount = 0;
 
     background = new createjs.Shape();
     background.graphics.beginBitmapFill(loader.getResult('background')).drawRect(0, 0, w, h);
     background.alpha = 0.9;
 
     projectiles = [];
+
+    if (hardmode) {
+        groundHoles = [0, 0, 0, 0, 0, 1, 1];
+        totemLand = [5, 7, 8, 9, 11, 13, 15, 16, 19, 20, 21, 23, 27, 28, 29, 30, 33, 34, 35, 36, 37, 38, 39, 41];
+        totemHole = [0, 2];
+        speedFactor = 0.75;
+    }
+    else {
+        groundHoles = [0, 1, 1, 1, 1, 1, 1, 1, 1];
+        totemLand = [0, 1, 2, 3, 4, 6, 10, 12, 14, 17, 18, 22, 24, 25, 26, 31, 32, 40, 42];
+        totemHole = [0];
+        speedFactor = 0.5;
+    }
 
     var ssPlayer = new createjs.SpriteSheet({
         framerate: 30,
@@ -185,7 +231,7 @@ function addGameScreen() {
         }
     });
 
-    player = new Actor(ssPlayer._regX/2, ssPlayer._frameHeight*0.3334, w/2, h/2, 'stand', true);
+    player = new Actor(ssPlayer._regX/2, ssPlayer._frameHeight*0.3334, w*0.75, h*0.4, 'stand', true);
     player.sprite = new createjs.Sprite(ssPlayer, 'stand');
     player.initsensor('right', 4, player.height-4, player.width/2, -4);
     player.initsensor('right2', 4, player.height-4, player.width/2-1, -4);
@@ -197,6 +243,7 @@ function addGameScreen() {
     //player.initsensor('top2', player.width-16, 4, 0, -player.height/2+1);
     player.hasFired = false;
     player.jumping = 0;
+    player.canmultidash = true;
 
     ssEnemy1 = new createjs.SpriteSheet({
         framerate: 10,
@@ -232,21 +279,132 @@ function addGameScreen() {
     });
 
     ssTotem = new createjs.SpriteSheet({
-        framerate: 20,
+        framerate: 60,
         'images': [loader.getResult('totem')],
-        'frames': {'width': 38, 'height': 58, 'regX': 19, 'regY': 29, 'count': 49},
+        'frames': {'width': 38, 'height': 58, 'regX': 19, 'regY': 29, 'count': 51},
         'animations': {
             'idle': [0, 0, '', 0.5],
             'lit1': [1, 24, 'lit1', 0.5],
-            'lit2': [25, 48, 'lit2', 0.5]
+            'lit2': [25, 48, 'lit2', 0.5],
+            'red' : [49, 49, '', 0.5],
+            'dead': [50, 50, '', 0.5]
         }
     });
 
-    totemFormations.push([new Point(0, 2), new Point(1, 2)]);
-    totemFormations.push([new Point(0, 0), new Point(0, 1), new Point(0, 2), new Point(0, 3)]);
-    totemFormations.push([new Point(0, 0), new Point(0, 1), new Point(0, 2), new Point(0, 3),
-                          new Point(1, 0), new Point(2, 0), new Point(3, 0), new Point(3, 1),
-                          new Point(3, 2), new Point(3, 3)]);
+    // Totem formations
+    totemFormations.push([new Point(0, 2)]);
+    totemFormations.push([new Point(0, 2), new Point(1, 2), new Point(2, 2)]);
+    totemFormations.push([new Point(0, 1), new Point(2, 1), new Point(3, 1), new Point(4, 1), new Point(5, 1)]);
+    totemFormations.push([new Point(0, 0), new Point(0, 1), new Point(0, 2), new Point(0, 4)]);
+    totemFormations.push([new Point(0, 0), new Point(1, 0), new Point(2, 0),
+        new Point(2, 1), new Point(2, 2), new Point(3, 2)]);
+    totemFormations.push([new Point(0, 0), new Point(0, 1), new Point(0, 2),
+        new Point(0, 3), new Point(1, 0), new Point(3, 0),
+        new Point(4, 0), new Point(4, 1), new Point(4, 2),
+        new Point(4, 3)]);
+    totemFormations.push([new Point(0, 3), new Point(1, 3), new Point(1, 2),
+        new Point(1, 1), new Point(1, 0), new Point(2, 3)]);
+    totemFormations.push([new Point(0, 0), new Point(1, 0), new Point(1, 1),
+        new Point(2, 0), new Point(2, 1), new Point(2, 2),
+        new Point(3, 1), new Point(4, 1)]);
+    totemFormations.push([new Point(0, 3), new Point(0, 2), new Point(1, 2),
+        new Point(1, 1), new Point(2, 1), new Point(2, 0)]);
+    totemFormations.push([new Point(0, 0), new Point(0, 1), new Point(1, 1),
+        new Point(2, 1), new Point(4, 2), new Point(4, 3),
+        new Point(5, 3), new Point(6, 3)]);
+    totemFormations.push([new Point(0, 0), new Point(1, 1), new Point(2, 2), new Point(3, 3)]);
+    totemFormations.push([new Point(0, 4), new Point(1, 4), new Point(2, 5),
+        new Point(2, 4), new Point(2, 3), new Point(3, 4),
+        new Point(3, 2), new Point(4, 1), new Point(5, 4),
+        new Point(5, 0), new Point(6, 4)]);
+    totemFormations.push([new Point(0, 3), new Point(1, 2), new Point(2, 1),
+        new Point(3, 2), new Point(4, 3)]);
+    totemFormations.push([new Point(0, 3), new Point(1, 4), new Point(1, 2),
+        new Point(2, 5), new Point(2, 1), new Point(3, 4),
+        new Point(3, 2), new Point(4, 3)]);
+    totemFormations.push([new Point(0, 3), new Point(1, 3), new Point(2, 3),
+        new Point(2, 2), new Point(2, 1), new Point(2, 0)]);
+    totemFormations.push([new Point(0, 1), new Point(1, 2), new Point(1, 1),
+        new Point(1, 0), new Point(3, 4), new Point(3, 3),
+        new Point(3, 2), new Point(4, 3)]);
+    totemFormations.push([new Point(0, 0), new Point(0, 1), new Point(0, 2),
+        new Point(0, 3), new Point(1, 4), new Point(2, 2),
+        new Point(3, 4), new Point(4, 3), new Point(4, 2),
+        new Point(4, 1), new Point(4, 0)]);
+    totemFormations.push([new Point(0, 0, 1)]);
+    totemFormations.push([new Point(0, 0, 1), new Point(0, 1, 1)]);
+    totemFormations.push([new Point(0, 0, 1), new Point(0, 1, 1), new Point(0, 2, 1), new Point(0, 3, 1)]);
+    totemFormations.push([new Point(0, 0, 1), new Point(0, 1, 1), new Point(0, 3, 1), new Point(0, 4, 1)]);
+    totemFormations.push([new Point(0, 3, 1), new Point(0, 1, 1), new Point(1, 3, 1),
+        new Point(1, 1, 1), new Point(2, 3, 1), new Point(2, 1, 1),
+        new Point(3, 4, 1), new Point(3, 3, 1), new Point(3, 1, 1),
+        new Point(3, 0, 1)]);
+    totemFormations.push([new Point(0, 4, 1), new Point(0, 3, 1), new Point(0, 2, 1),
+        new Point(0, 1, 1), new Point(2, 1, 1), new Point(3, 1, 1),
+        new Point(3, 0, 1)]);
+    totemFormations.push([new Point(0, 5, 1), new Point(0, 4, 1), new Point(0, 3, 1),
+        new Point(0, 2, 1), new Point(0, 1, 1), new Point(2, 1, 1),
+        new Point(3, 1, 1), new Point(4, 1, 1), new Point(5, 1, 1),
+        new Point(6, 1, 1), new Point(6, 0, 1)]);
+    totemFormations.push([new Point(0, 0, 1), new Point(1, 0, 1),
+        new Point(2, 0, 1), new Point(3, 0, 1), new Point(4, 0, 1)]);
+    totemFormations.push([new Point(0, 0, 1), new Point(1, 0, 1), new Point(2, 0, 1),
+        new Point(5, 0, 1), new Point(6, 0, 1), new Point(7, 0, 1), new Point(8, 0, 1)]);
+    totemFormations.push([new Point(0, 2), new Point(0, 1, 1), new Point(0, 0), new Point(1, 1)]);
+    totemFormations.push([new Point(0, 1, 1), new Point(1, 1, 1), new Point(2, 1, 1),
+        new Point(2, 2), new Point(2, 0), new Point(3, 1)]);
+    totemFormations.push([new Point(0, 3, 1), new Point(1, 3), new Point(2, 3),
+        new Point(2, 1), new Point(1, 1, 1), new Point(2, 0, 1), new Point(3, 3)]);
+    totemFormations.push([new Point(0, 4, 1), new Point(0, 2, 1), new Point(0, 0, 1), new Point(1, 2),
+        new Point(2, 4, 1), new Point(2, 2, 1), new Point(2, 0, 1), new Point(3, 2, 1)]);
+    totemFormations.push([new Point(0, 0), new Point(1, 3, 1), new Point(1, 1, 1), new Point(2, 4),
+        new Point(3, 3, 1), new Point(3, 1, 1), new Point(4, 5, 1), new Point(4, 4, 1),
+        new Point(4, 3, 1), new Point(4, 1, 1), new Point(4, 0, 1)]);
+    totemFormations.push([new Point(0, 2), new Point(0, 3, 1),
+        new Point(1, 2, 1), new Point(1, 3)]);
+    totemFormations.push([new Point(0, 1, 1), new Point(0, 0, 1), new Point(1, 1, 1), new Point(1, 0, 1),
+        new Point(2, 1, 1), new Point(2, 0, 1), new Point(3, 1, 1), new Point(3, 0, 1)]);
+    totemFormations.push([new Point(0, 2, 1), new Point(0, 1, 1), new Point(0, 0, 1), new Point(1, 2),
+        new Point(1, 1), new Point(1, 0), new Point(2, 2, 1), new Point(2, 1, 1),
+        new Point(2, 0, 1), new Point(3, 2, 1), new Point(3, 1, 1), new Point(3, 0, 1),
+        new Point(4, 2, 1), new Point(4, 1, 1), new Point(4, 0, 1)]);
+    totemFormations.push([new Point(0, 3), new Point(0, 2), new Point(0, 1, 1), new Point(1, 3, 1),
+        new Point(1, 2), new Point(2, 3), new Point(2, 2), new Point(2, 1, 1),
+        new Point(3, 3, 1), new Point(3, 2)]);
+    totemFormations.push([new Point(0, 1, 1), new Point(1, 1), new Point(2, 1, 1),
+        new Point(3, 1), new Point(4, 1, 1), new Point(5, 1), new Point(6, 1, 1)]);
+    totemFormations.push([new Point(0, 0, 1), new Point(1, 1), new Point(2, 1), new Point(2, 0, 1),
+        new Point(3, 0, 1), new Point(4, 0, 1), new Point(5, 2, 1), new Point(5, 1, 1),
+        new Point(5, 0, 1), new Point(6, 2), new Point(7, 2, 1), new Point(7, 1, 1),
+        new Point(7, 0, 1)]);
+    totemFormations.push([new Point(0, 3), new Point(1, 5, 1), new Point(1, 4, 1), new Point(1, 3),
+        new Point(1, 2, 1), new Point(1, 1, 1), new Point(1, 0, 1), new Point(2, 0),
+        new Point(3, 5, 1), new Point(3, 4, 1), new Point(3, 2, 1), new Point(3, 1, 1),
+        new Point(3, 0, 1), new Point(4, 5, 1), new Point(4, 0), new Point(5, 5, 1), new Point(5, 3),
+        new Point(5, 2, 1), new Point(5, 1, 1), new Point(5, 0, 1), new Point(7, 7, 1),
+        new Point(7, 6, 1), new Point(7, 5, 1), new Point(7, 4, 1), new Point(7, 3, 1), new Point(7, 2, 1),
+        new Point(7, 1, 1), new Point(7, 0)]);
+    totemFormations.push([new Point(0, 0), new Point(2, 0), new Point(3, 7, 1), new Point(3, 6, 1),
+        new Point(3, 5, 1), new Point(3, 3, 1), new Point(3, 1, 1), new Point(3, 0),
+        new Point(4, 0), new Point(5, 3, 1), new Point(5, 2), new Point(5, 1, 1),
+        new Point(5, 0, 1), new Point(6, 3, 1), new Point(6, 2), new Point(6, 1, 1), new Point(6, 0, 1),
+        new Point(7, 6, 1), new Point(7, 5), new Point(7, 3, 1), new Point(7, 1, 1), new Point(7, 0, 1)]);
+    totemFormations.push([new Point(0, 0, 1), new Point(1, 1), new Point(1, 0, 1), new Point(2, 3, 1),
+        new Point(2, 1, 1), new Point(2, 0, 1), new Point(3, 3, 1), new Point(3, 2),
+        new Point(3, 1), new Point(3, 0), new Point(4, 3, 1), new Point(4, 2),
+        new Point(4, 1, 1), new Point(4, 0, 1), new Point(5, 3, 1), new Point(5, 2), new Point(5, 1),
+        new Point(5, 0)]);
+    totemFormations.push([new Point(0, 4), new Point(0, 3, 1), new Point(0, 2),
+        new Point(0, 1, 1), new Point(1, 1, 1), new Point(3, 1, 1),
+        new Point(4, 4), new Point(4, 3, 1), new Point(4, 2),
+        new Point(4, 1, 1)]);
+    totemFormations.push([new Point(0, 3), new Point(1, 5), new Point(1, 4, 1), new Point(1, 3),
+        new Point(1, 2, 1), new Point(1, 0, 1), new Point(2, 4, 1),
+        new Point(2, 0, 1), new Point(4, 4, 1), new Point(4, 0, 1), new Point(5, 5),
+        new Point(5, 4, 1), new Point(5, 3), new Point(5, 2, 1), new Point(5, 0, 1),
+        new Point(6, 3)]);
+    totemFormations.push([new Point(0, 2), new Point(0, 1), new Point(0, 0), new Point(1, 1), new Point(2, 2),
+        new Point(2, 1), new Point(2, 0)]);
 
     // Add lives
     for(var i = 0; i < player.health; i++) {
@@ -255,11 +413,11 @@ function addGameScreen() {
         life.y = 5;
         life.scaleX = 0.5;
         life.scaleY = 0.5;
-        life.alpha = 0.5;
+        life.alpha = 0.8;
         lives.addChild(life); 
     }
 
-    score = new createjs.Text('0', 'bold 18px Tahoma, Geneva, sans-serif', '#111');
+    score = new createjs.Text('Totems lit: 0', 'bold 18px Tahoma, Geneva, sans-serif', '#111');
     score.x = w-5;
     score.y = 2;
     score.textAlign = 'right';
@@ -269,7 +427,7 @@ function addGameScreen() {
     stage.addChild(player.sprite);
 
     // Generate initial platform
-    addPlatform(0, h * 0.8, 2, false);
+    addPlatform(0, h * 0.8, 3, false);
 
     stage.addChild(lives, score);
 }
@@ -285,16 +443,16 @@ function spawnOrb(x, y) {
 function spawnEnemy() {
     var direction = Math.random() < 0.5 ? -1 : 1;
     var xStart  = direction == -1 ? w+30 : -30;
-    var enemyType = getRandomInt(1, 3);
+    var enemyType = randInt(1, 3);
     var enemy;
     switch (enemyType) {
     case 1:
-        enemy = new Actor(64, 128, xStart, getRandomInt(-100, 500), 'walk');
+        enemy = new Actor(64, 128, xStart, randInt(-100, 500), 'walk');
         enemy.sprite = new createjs.Sprite(ssEnemy1, 'walk');
         enemy.health = 2;
         break;
     case 2:
-        enemy = new Actor(64, 128, xStart, getRandomInt(-100, 500), 'walk');
+        enemy = new Actor(64, 128, xStart, randInt(-100, 500), 'walk');
         enemy.sprite = new createjs.Sprite(ssEnemy2, 'walk');
         enemy.health = 3;
         break;
@@ -303,21 +461,64 @@ function spawnEnemy() {
     enemy.initsensor('left', 4, enemy.height-8, -enemy.width/2, 0);
     enemy.initsensor('bottom', enemy.width, 4, 0, enemy.height/2);
     enemy.initsensor('bottom2', enemy.width, 4, 0, enemy.height/2-1);
-    enemy.speed.x = getRandomInt(100, 300) * direction;
+    enemy.speed.x = randInt(100, 300) * direction;
     enemy.sprite.scaleX = enemyType == 2 ? 0-direction : direction;
     enemy.sprite.alpha = 0.6;
     enemies.push(enemy);
     stage.addChild(enemy.sprite);
 }
 
+function addScore(amount) {
+    totemCount += amount;
+    score.text = "Totems lit: " + totemCount;
+}
+
 function addTotems(id, offsetX, offsetY) {
+    var _w = ssTotem._frameWidth * 1.75;
+    var _h = ssTotem._frameHeight * 1.15;
     totemFormations[id].forEach(function(point) {
-        var _w = ssTotem._frameWidth;
-        var _h = ssTotem._frameHeight;
-        var _x = offsetX + point.x * _w * 2;
-        var _y = offsetY + (point.y - 3) * _h * 1.15;
-        var totem = new Actor(_w, _h, _x, _y, 'idle');
-        totem.sprite = new createjs.Sprite(ssTotem, 'idle');
+        var _x = offsetX + point.x * _w;
+        var _y = offsetY - point.y * _h;
+        var _state = point.z == 2 ? 'dead' : point.z == 1 ? 'red' : 'idle';
+        var totem = new Actor(_w * 0.5, _h * 0.5, _x, _y, _state);
+        totem.sprite = new createjs.Sprite(ssTotem, _state);
+        totem.red = point.z;
+        totem.lit = 0;
+        totem.ignore = 0;
+        totem.hit = function() {
+            if (this.red == 0 && this.ignore == 0 && this.lit < 2) {
+                this.lit++;
+                this.ignore = 0.4;
+                if (this.lit == 1) {
+                    this.state = 'lit1';
+                    addScore(1);
+                }
+                else if (this.lit == 2) {
+                    this.state = 'lit2';
+                    addScore(2);
+                    if (player.jumping != 100 && player.dashing == 0 && !player.ground) {
+                        player.speed.y = Math.min(player.speed.y - 300, -750);
+                    }
+                }
+            }
+            else if (this.red == 1) {
+                this.red = 2;
+                this.state = 'dead';
+                player.health--;
+                lives.removeChildAt(lives.children.length-1);
+                if (player.health <= 0) {
+                    reloading = true;
+                    document.location.reload(true);
+                }
+            }
+        };
+        totem.tick = function() {
+            if (this.ignore > 0) {
+                this.ignore -= delta;
+                if (this.ignore < 0)
+                    this.ignore = 0;
+            }
+        };
         totems.push(totem);
         stage.addChild(totem.sprite);
     });
@@ -345,8 +546,14 @@ function addPlatform(x, y, length, spawnTotems) {
     };
     platform.setbounds();
 
-    if (spawnTotems === undefined || spawnTotems)
-        addTotems(getRandomInt(0, 2), x + spriteImg.width - 32, y - 48);
+    if (spawnTotems === undefined || spawnTotems) {
+        addTotems(totemHole[randIntEx(0, totemHole.length)], x + spriteImg.width * length - 32, y - 48);
+        bgSpawn -= (length - 1) * 1.75 - 0.15 - 0.5 * groundHoles[randIntEx(0, groundHoles.length)];
+        if (length > 1) {
+            if ((length == 2 ? randInt(0, 2) : 1) > 0)
+                addTotems(totemLand[randIntEx(0, totemLand.length)], x + spriteImg.width * length / 2 - 32, y - 48);
+        }
+    }
 
     tilesets.push(platform);
     stage.addChild(platform.sprite);
@@ -376,10 +583,10 @@ function tick(event) {
         timer += delta;
 
         // Background spawning
-        bgSpawn += delta;
+        bgSpawn += delta * speedFactor;
         if (bgSpawn > 2.25) {
-            bgSpawn = 0;
-            addPlatform(w, h * 0.6 + Math.random() * h * 0.35);
+            bgSpawn -= 2.25;
+            addPlatform(w, h * 0.6 + Math.random() * h * 0.35, groundLength[randIntEx(0, groundLength.length)]);
             if (tilesets.length > 4)
                 tilesets[0].remove();
             for (var i = 0, totem; totem = totems[i]; i++) {
@@ -393,8 +600,8 @@ function tick(event) {
 
         // Background scrolling
         tilesets.forEach(function(tileset) {
-            tileset.pos.x -= 300 * delta;
-            tileset.sprite.x -= 300 * delta;
+            tileset.pos.x -= 300 * delta * speedFactor;
+            tileset.sprite.x -= 300 * delta * speedFactor;
             tileset.setbounds();
         });
 
@@ -416,18 +623,22 @@ function tick(event) {
         else if (!input.left && player.speed.x < 0 || player.speed.x < -player.speed.run)
             player.speed.x = Math.min(player.speed.x + decel, 0);
 
-        if (input.doubletapped.right) {
-            player.sprite.scaleX = 1;
-            player.dash(0.275);
-        }
-        else if (input.doubletapped.left) {
-            player.sprite.scaleX = -1;
-            player.dash(0.275);
+        if (player.dashing == 0) {
+            if (input.doubletapped.right || input.dash && (input.right || !input.left && player.sprite.scaleX == 1)) {
+                player.sprite.scaleX = 1;
+                player.dash(0.275);
+                input.dash = false;
+            }
+            else if (input.doubletapped.left || input.dash && (input.left || !input.right && player.sprite.scaleX == -1)) {
+                player.sprite.scaleX = -1;
+                player.dash(0.275);
+                input.dash = false;
+            }
         }
 
         if (player.ground) {
             if (input.jump && player.jumping == 0)
-                player.jump(600);
+                player.jump(620);
             /*else if (input.down && player.pos.y < 500)
                 player.fall();*/
         }
@@ -437,9 +648,9 @@ function tick(event) {
             else if (!input.jump && player.jumping == 1)
                 player.jumping = 2;
             else if (input.jump && player.jumping == 2) {
-                player.jump(100);
+                player.jump(90);
             }
-            else if (player.jumping >= 3 && player.jumping < 8) {
+            else if (player.jumping >= 3 && player.jumping < 9) {
                 player.jumping++;
                 player.speed.y -= 140;
             }
@@ -589,9 +800,16 @@ function tick(event) {
 
         // Update totems
         for (var i = 0, totem; totem = totems[i]; i++) {
-            totem.speed.x = -300;
+            totem.speed.x = -300 * speedFactor;
+
+            if (player.colliding(totem))
+                totem.hit();
+
+            if (totem.sprite.currentAnimation != totem.state)
+                totem.sprite.gotoAndPlay(totem.state);
 
             totem.update();
+            totem.tick();
 
             if (totem.pos.x < -ssTotem._frameWidth) {
                 stage.removeChild(totem.sprite);
@@ -612,6 +830,9 @@ function tick(event) {
 
     // Update shake
     updateShake();
+
+    // Increase speed factor
+    speedFactor += ((hardmode ? 1.75 : 1.25) - speedFactor) * (hardmode ? 0.00026 : 0.00015);
 }
 
 function actorShoot() {
@@ -687,8 +908,10 @@ function actorDash(duration) {
 }
 
 function actorDashCancel() {
-    this.dashing = 0;
-    this.dashdelay = 0.35;
+    if (this.dashing != 0) {
+        this.dashing = 0;
+        this.dashdelay = 0.35;
+    }
 }
 
 function actorReposition(vertical) {
@@ -774,7 +997,7 @@ function updateShake() {
             var max = (shakeDuration * 64) | 0;
             var min = -max;
             document.getElementById('arena').style.margin =
-                [getRandomInt(min, max), getRandomInt(min, max), getRandomInt(min, max), getRandomInt(min, max)]
+                [randInt(min, max), randInt(min, max), randInt(min, max), randInt(min, max)]
                     .join('px ') + 'px';
         }
         else {
@@ -851,8 +1074,12 @@ function keyPressedDown() {
         input.id |= 16;
         input.fire = true;
     }
+    if (key.isPressed('z') || key.isPressed('l')) {
+        input.id |= 32;
+        input.dash = true;
+    }
 
-    var multiple = input.id > 2 && input.id != 4 && input.id != 8 && input.id != 16;
+    var multiple = input.id > 2 && input.id != 4 && input.id != 8 && input.id != 16 && input.id != 32;
 
     if (input.released || multiple) {
         input.released = false;
@@ -870,6 +1097,8 @@ function keyPressedDown() {
                 input.doubletapped.jump = true;
             if ((overlap & 16) == 16)
                 input.doubletapped.fire = true;
+            if ((overlap & 32) == 32)
+                input.doubletapped.dash = true;
         }
     }
 
@@ -883,24 +1112,28 @@ function keyPressedUp() {
     input.released = true;
 
     if (!key.isPressed('left') && !key.isPressed('a')) {
-        input.id &= 30;
+        input.id &= 62;
         input.left = false;
     }
     if (!key.isPressed('right') && !key.isPressed('d')) {
-        input.id &= 29;
+        input.id &= 61;
         input.right = false;
     }
     if (!key.isPressed('down') && !key.isPressed('s')) {
-        input.id &= 27;
+        input.id &= 59;
         input.down = false;
     }
     if (!key.isPressed('up') && !key.isPressed('w')) {
-        input.id &= 23;
+        input.id &= 55;
         input.jump = false;
     }
     if (!key.isPressed('space') && !key.isPressed('enter')) {
-        input.id &= 15;
+        input.id &= 47;
         input.fire = false;
+    }
+    if (!key.isPressed('z') && !key.isPressed('l')) {
+        input.id &= 31;
+        input.dash = false;
     }
 }
 
@@ -911,10 +1144,15 @@ function inputUpdate() {
         right: false,
         down: false,
         jump: false,
-        fire: false
+        fire: false,
+        dash: false
     };
 }
 
-function getRandomInt(min, max) {
+function randInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function randIntEx(min, max) {
+    return Math.floor(Math.random() * (max - min)) + min;
 }
