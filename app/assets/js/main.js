@@ -1,3 +1,16 @@
+Url = {
+    get get(){
+        var vars= {};
+        if(window.location.search.length!==0)
+            window.location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m,key,value){
+                key=decodeURIComponent(key);
+                if(typeof vars[key]==="undefined") {vars[key]= decodeURIComponent(value);}
+                else {vars[key]= [].concat(vars[key], decodeURIComponent(value));}
+            });
+        return vars;
+    }
+};
+
 // Stage Variables
 var stage, w, h, splash, loader, delta, timer, reloading;
 
@@ -5,7 +18,7 @@ var stage, w, h, splash, loader, delta, timer, reloading;
 var TitleView = new createjs.Container();
 
 // Game Screen
-var input, ground, player, spirit;
+var input, ground, player, clothing, spirit;
 var projectiles, spriteSheetPlatform;
 var ssEnemy1, ssEnemy2, ssEnemy3, ssOrb, ssTotem;
 var totemCount, scoreText;
@@ -13,7 +26,7 @@ var tilesets = [], enemies = [], orbs = [], totems = [];
 var totemFormations = [];
 var lives = new createjs.Container();
 var bgSpawn, shakeDuration;
-var hardmode = true, speedFactor;
+var hardmode = Url.get.hardmode !== undefined, speedFactor;
 
 // Probabilities
 var groundLength = [1, 1, 2, 2, 2, 3];
@@ -104,6 +117,7 @@ function showSplash() {
 
     manifest = [
         {src: 'heroine.png', id: 'character'},
+        {src: 'heroine-clothing.png', id: 'clothing'},
         {src: 'ground.png', id: 'platform'},
         {src: 'arrow-1.png', id: 'projectile'},
         {src: 'background-2.png', id: 'background'},
@@ -209,13 +223,13 @@ function addGameScreen() {
     if (hardmode) {
         groundHoles = [0, 0, 0, 0, 0, 1, 1];
         totemLand = [5, 7, 8, 9, 11, 13, 15, 16, 19, 20, 21, 23, 27, 28, 29, 30, 33, 34, 35, 36, 37, 38, 39, 41];
-        totemHole = [0, 2];
+        totemHole = [5, 8, 9, 11, 16, 23];
         speedFactor = 0.75;
     }
     else {
         groundHoles = [0, 1, 1, 1, 1, 1, 1, 1, 1];
         totemLand = [0, 1, 2, 3, 4, 6, 10, 12, 14, 17, 18, 22, 24, 25, 26, 31, 32, 40, 42];
-        totemHole = [0];
+        totemHole = [1, 4, 14];
         speedFactor = 0.5;
     }
 
@@ -244,6 +258,20 @@ function addGameScreen() {
     player.hasFired = false;
     player.jumping = 0;
     player.canmultidash = true;
+
+    var ssClothing = new createjs.SpriteSheet({
+        framerate: 30,
+        'images': [loader.getResult('clothing')],
+        'frames': {'width': 214, 'height': 150, 'regX': 107, 'regY': 75, 'count': 31},
+        'animations': {
+            'fall': [0, 3, '', 0.5],
+            'stand': [4, 17, 'stand', 0.4],
+            'jump': [18, 22, 'jump', 0.6],
+            'run': [23, 30, 'run', 0.5]
+        }
+    });
+
+    clothing = new createjs.Sprite(ssClothing, 'stand');
 
     ssEnemy1 = new createjs.SpriteSheet({
         framerate: 10,
@@ -424,7 +452,7 @@ function addGameScreen() {
 
     stage.addChild(background);
 
-    stage.addChild(player.sprite);
+    stage.addChild(player.sprite, clothing);
 
     // Generate initial platform
     addPlatform(0, h * 0.8, 3, false);
@@ -504,6 +532,7 @@ function addTotems(id, offsetX, offsetY) {
             else if (this.red == 1) {
                 this.red = 2;
                 this.state = 'dead';
+                shake(0.3);
                 player.health--;
                 lives.removeChildAt(lives.children.length-1);
                 if (player.health <= 0) {
@@ -626,11 +655,13 @@ function tick(event) {
         if (player.dashing == 0) {
             if (input.doubletapped.right || input.dash && (input.right || !input.left && player.sprite.scaleX == 1)) {
                 player.sprite.scaleX = 1;
+                clothing.scaleX = 1;
                 player.dash(0.275);
                 input.dash = false;
             }
             else if (input.doubletapped.left || input.dash && (input.left || !input.right && player.sprite.scaleX == -1)) {
                 player.sprite.scaleX = -1;
+                clothing.scaleX = -1;
                 player.dash(0.275);
                 input.dash = false;
             }
@@ -701,9 +732,11 @@ function tick(event) {
         // Update actors and sensors
         player.pos.x -= 2;
         player.update();
+        clothing.x = player.sprite.x;
+        clothing.y = player.sprite.y;
 
         // Death at bottom of screen
-        if (player.pos.y > h + 256 && !reloading) {
+        if (player.pos.y > h + 128 && !reloading) {
             reloading = true;
             window.location.reload(false);
         }
@@ -763,14 +796,25 @@ function tick(event) {
             player.groundIgnore -= delta;
 
         // Set player animation
-        if (player.sprite.currentAnimation != player.state)
+        if (player.sprite.currentAnimation != player.state) {
             player.sprite.gotoAndPlay(player.state);
+            clothing.gotoAndPlay(player.state);
+        }
 
         // Set player orientation
-        if (player.speed.x > 0 && player.sprite.scaleX == -1)
+        if (player.speed.x > 0 && player.sprite.scaleX == -1) {
             player.sprite.scaleX = 1;
-        else if (player.speed.x < 0 && player.sprite.scaleX == 1)
+            clothing.scaleX = 1;
+        }
+        else if (player.speed.x < 0 && player.sprite.scaleX == 1) {
             player.sprite.scaleX = -1;
+            clothing.scaleX = -1;
+        }
+
+        if (player.sensor.bottom2.colliding() && !reloading) {
+            reloading = true;
+            document.location.reload(true);
+        }
 
         // Now do the same thing for the enemies
         for (var i = 0; i < enemies.length; i++) {
